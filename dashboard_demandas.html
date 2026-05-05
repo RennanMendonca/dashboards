@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demandas Pendentes — Vereador Marcio Ribeiro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary:       #0f2d5e;
+  --primary-light: #1a4a8a;
+  --accent:        #c9a227;
+  --bg:            #f0f2f5;
+  --card:          #ffffff;
+  --text:          #1a1a2e;
+  --muted:         #6b7280;
+  --border:        #e2e8f0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--primary);
+  color: #fff;
+  padding: 0 24px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.seal {
+  width: 38px; height: 38px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 15px; color: var(--primary);
+  flex-shrink: 0;
+}
+.brand-text h1 { font-size: 15px; font-weight: 700; letter-spacing: .2px; }
+.brand-text p  { font-size: 11px; opacity: .65; margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+#lastUpdate { font-size: 11px; opacity: .6; }
+.btn-upload {
+  background: var(--accent); color: var(--primary);
+  border: none; padding: 7px 16px; border-radius: 6px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity .15s;
+}
+.btn-upload:hover { opacity: .88; }
+#fileInput { display: none; }
+
+/* ── FILTERS ── */
+.filters {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+}
+.fg { display: flex; flex-direction: column; gap: 3px; }
+.fg label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--muted);
+}
+.fg select {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px; font-size: 13px; color: var(--text);
+  background: #fff; outline: none; min-width: 130px;
+  transition: border-color .15s;
+}
+.fg select:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(26,74,138,.1); }
+.fg.wide select { min-width: 190px; }
+.btn-clear {
+  border: 1px solid var(--border); background: none; border-radius: 6px;
+  padding: 6px 13px; font-size: 13px; cursor: pointer; color: var(--muted);
+  transition: all .15s; align-self: flex-end;
+}
+.btn-clear:hover { border-color: #ef4444; color: #ef4444; }
+
+/* ── MAIN ── */
+.main { padding: 20px 24px; max-width: 1420px; margin: 0 auto; }
+
+/* ── EMPTY STATE ── */
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 90px 20px;
+  color: var(--muted); text-align: center; gap: 14px;
+}
+.empty-icon { font-size: 60px; opacity: .25; }
+.empty h2 { font-size: 20px; font-weight: 600; color: var(--text); }
+.empty p  { font-size: 14px; max-width: 340px; line-height: 1.6; }
+
+/* ── CARDS ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px,1fr)); gap: 14px; margin-bottom: 16px; }
+.card {
+  background: var(--card); border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.card.accent-left { border-left: 4px solid var(--accent); }
+.card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 8px; }
+.card-value { font-size: 30px; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 5px; }
+.card-value.sm { font-size: 20px; }
+.card-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── STATUS CHIPS ── */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px 4px 8px;
+  font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.chip-n { font-weight: 700; }
+
+/* ── CHARTS ── */
+.charts { display: grid; grid-template-columns: 1fr 350px; gap: 14px; margin-bottom: 16px; }
+@media (max-width: 860px) { .charts { grid-template-columns: 1fr; } }
+.chart-card {
+  background: var(--card); border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.chart-title { font-size: 13px; font-weight: 700; }
+.toggles { display: flex; gap: 4px; }
+.tb {
+  border: 1px solid var(--border); background: #fff;
+  border-radius: 5px; padding: 3px 9px;
+  font-size: 11px; cursor: pointer; color: var(--muted);
+  transition: all .12s;
+}
+.tb.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+#barWrap { position: relative; }
+#donutWrap { display: flex; align-items: center; justify-content: center; height: 300px; }
+
+/* ── TABLE ── */
+.table-card {
+  background: var(--card); border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+.table-head {
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 8px;
+}
+.table-head-title { font-size: 13px; font-weight: 700; }
+.table-ctrls { display: flex; gap: 8px; align-items: center; }
+.search {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 10px 6px 30px; font-size: 13px; width: 220px; outline: none;
+  background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;
+}
+.search:focus { border-color: var(--primary-light); }
+.btn-export {
+  background: var(--primary); color: #fff;
+  border: none; border-radius: 6px; padding: 6px 13px;
+  font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  transition: opacity .15s;
+}
+.btn-export:hover { opacity: .85; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: #f8fafc; border-bottom: 2px solid var(--border);
+  padding: 9px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--muted); white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background .08s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+tbody td { padding: 9px 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+
+/* ── PAGINATION ── */
+.pag {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 18px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--muted);
+}
+.pag-btns { display: flex; gap: 3px; }
+.pb {
+  border: 1px solid var(--border); background: #fff;
+  border-radius: 5px; padding: 4px 9px;
+  font-size: 12px; cursor: pointer; color: var(--text);
+  transition: all .12s;
+}
+.pb:hover, .pb.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pb:disabled { opacity: .38; cursor: not-allowed; background: #fff; color: var(--muted); border-color: var(--border); }
+
+/* ── SPINNER ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-brand">
+    <div class="seal">MR</div>
+    <div class="brand-text">
+      <h1>Demandas Pendentes</h1>
+      <p>Gabinete Vereador Marcio Ribeiro — Câmara Municipal do Rio de Janeiro</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="lastUpdate">Nenhum arquivo carregado</span>
+    <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+      📂 Carregar Planilha
+    </button>
+    <input type="file" id="fileInput" accept=".csv" onchange="handleFile(event)">
+  </div>
+</header>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="fg">
+    <label>Ano</label>
+    <select id="fAno" onchange="applyFilters()">
+      <option value="">Todos os anos</option>
+    </select>
+  </div>
+  <div class="fg wide">
+    <label>Região</label>
+    <select id="fRegiao" onchange="onRegiaoChange()">
+      <option value="">Todas as regiões</option>
+    </select>
+  </div>
+  <div class="fg wide">
+    <label>Bairro</label>
+    <select id="fBairro" onchange="applyFilters()">
+      <option value="">Todos os bairros</option>
+    </select>
+  </div>
+  <div class="fg wide">
+    <label>Órgão</label>
+    <select id="fOrgao" onchange="applyFilters()">
+      <option value="">Todos os órgãos</option>
+    </select>
+  </div>
+  <button class="btn-clear" onclick="clearFilters()">✕ Limpar</button>
+</div>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- EMPTY STATE -->
+  <div class="empty" id="emptyState">
+    <div class="empty-icon">📋</div>
+    <h2>Nenhum dado carregado</h2>
+    <p>Clique em <strong>Carregar Planilha</strong> para importar o arquivo CSV de demandas.</p>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none">
+
+    <!-- Cards -->
+    <div class="cards" id="cardsGrid"></div>
+
+    <!-- Status chips -->
+    <div class="chips" id="statusChips"></div>
+
+    <!-- Charts -->
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title" id="barTitle">Top 15 por Bairro</span>
+          <div class="toggles">
+            <button class="tb on"  onclick="setBarMode('bairro',this)">Bairro</button>
+            <button class="tb"     onclick="setBarMode('regiao',this)">Região</button>
+            <button class="tb"     onclick="setBarMode('orgao',this)">Órgão</button>
+          </div>
+        </div>
+        <div id="barWrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Distribuição por Status</span>
+        </div>
+        <div id="donutWrap"><canvas id="donutChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-head">
+        <span class="table-head-title">
+          📋 Demandas detalhadas —&nbsp;<span id="tCount">0</span>&nbsp;registros
+        </span>
+        <div class="table-ctrls">
+          <input type="text" class="search" id="searchInput" placeholder="Buscar…" oninput="onSearch()">
+          <button class="btn-export" onclick="exportCSV()">⬇ Exportar CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Bairro</th>
+              <th>Região</th>
+              <th>Órgão</th>
+              <th>Status</th>
+              <th>Demanda</th>
+              <th>Solicitante</th>
+            </tr>
+          </thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+      <div class="pag" id="pagBar"></div>
+    </div>
+
+  </div><!-- /dashboard -->
+</main>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const EXCL = ['Atendido', 'Não Atendido'];
+
+const S_STYLE = {
+  'Aguardando':          { bg:'#fef3c7', fg:'#92400e', dot:'#f59e0b' },
+  'Atrasado':            { bg:'#fee2e2', fg:'#991b1b', dot:'#ef4444' },
+  'Em andamento...':     { bg:'#dbeafe', fg:'#1e40af', dot:'#3b82f6' },
+  'Ofício Enviado':      { bg:'#ede9fe', fg:'#5b21b6', dot:'#8b5cf6' },
+  'Pedido Encaminhado':  { bg:'#cffafe', fg:'#155e75', dot:'#06b6d4' },
+  'Pendente':            { bg:'#ffedd5', fg:'#9a3412', dot:'#f97316' },
+  'Programado':          { bg:'#d1fae5', fg:'#065f46', dot:'#10b981' },
+};
+
+const BAR_COLORS = [
+  '#0f2d5e','#1a4a8a','#c9a227','#2563eb','#7c3aed',
+  '#059669','#dc2626','#d97706','#0891b2','#9333ea',
+  '#16a34a','#ea580c','#0284c7','#a21caf','#ca8a04',
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let allData      = [];
+let filteredData = [];
+let tableData    = [];
+let barMode      = 'bairro';
+let curPage      = 1;
+const PAGE       = 25;
+let barInst      = null;
+let donutInst    = null;
+
+// ── File ───────────────────────────────────────────────────────────────────
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('lastUpdate').textContent = '⏳ Carregando…';
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete(res) {
+      allData = res.data.filter(r => !EXCL.includes((r.status || '').trim()));
+      populateFilters();
+      applyFilters();
+      document.getElementById('emptyState').style.display  = 'none';
+      document.getElementById('dashboard').style.display   = 'block';
+      const now = new Date().toLocaleString('pt-BR', {
+        day:'2-digit', month:'2-digit', year:'numeric',
+        hour:'2-digit', minute:'2-digit'
+      });
+      document.getElementById('lastUpdate').textContent = `Atualizado: ${now}`;
+      e.target.value = '';
+    },
+    error(err) {
+      alert('Erro ao ler arquivo: ' + err.message);
+      document.getElementById('lastUpdate').textContent = 'Erro ao carregar';
+    }
+  });
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const getYear  = r => { const m = (r['Creation Date'] || '').match(/(\d{4})/); return m ? m[1] : ''; };
+const getRegiao= r => (r['Região']  || '').trim();
+const getBairro= r => (r['bairro']  || '').trim();
+const getOrgao = r => (r['ÓRGÃO']   || '').trim();
+const getStatus= r => (r['status']  || '').trim();
+
+function countBy(arr, fn) {
+  const m = {};
+  arr.forEach(r => { const k = fn(r); if (k) m[k] = (m[k] || 0) + 1; });
+  return m;
+}
+function topEntry(arr, fn) {
+  const e = Object.entries(countBy(arr, fn)).sort((a,b) => b[1]-a[1])[0];
+  return e ? { name: e[0], count: e[1] } : { name: '—', count: 0 };
+}
+function setOpts(id, values) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0].cloneNode(true);
+  sel.innerHTML = '';
+  sel.appendChild(first);
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+function sorted(set) { return [...set].filter(Boolean).sort((a,b) => a.localeCompare(b, 'pt-BR')); }
+
+// ── Filters ────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const anos    = [...new Set(allData.map(getYear))].filter(Boolean).sort((a,b) => b-a);
+  setOpts('fAno',    anos);
+  setOpts('fRegiao', sorted(new Set(allData.map(getRegiao))));
+  setOpts('fOrgao',  sorted(new Set(allData.map(getOrgao))));
+  refreshBairros(allData);
+}
+
+function refreshBairros(src) {
+  const cur = document.getElementById('fBairro').value;
+  setOpts('fBairro', sorted(new Set(src.map(getBairro))));
+  if (cur) document.getElementById('fBairro').value = cur;
+}
+
+function onRegiaoChange() {
+  const r = document.getElementById('fRegiao').value;
+  refreshBairros(r ? allData.filter(d => getRegiao(d) === r) : allData);
+  document.getElementById('fBairro').value = '';
+  applyFilters();
+}
+
+function clearFilters() {
+  ['fAno','fRegiao','fBairro','fOrgao'].forEach(id => document.getElementById(id).value = '');
+  refreshBairros(allData);
+  applyFilters();
+}
+
+function applyFilters() {
+  const ano    = document.getElementById('fAno').value;
+  const regiao = document.getElementById('fRegiao').value;
+  const bairro = document.getElementById('fBairro').value;
+  const orgao  = document.getElementById('fOrgao').value;
+
+  filteredData = allData.filter(r =>
+    (!ano    || getYear(r)   === ano)    &&
+    (!regiao || getRegiao(r) === regiao) &&
+    (!bairro || getBairro(r) === bairro) &&
+    (!orgao  || getOrgao(r)  === orgao)
+  );
+
+  tableData = [...filteredData];
+  curPage = 1;
+  document.getElementById('searchInput').value = '';
+
+  renderCards();
+  renderChips();
+  renderBar();
+  renderDonut();
+  renderTable();
+}
+
+// ── Cards ──────────────────────────────────────────────────────────────────
+function renderCards() {
+  const n        = filteredData.length;
+  const topOrgao = topEntry(filteredData, getOrgao);
+  const topBairro= topEntry(filteredData, getBairro);
+  const topReg   = topEntry(filteredData, getRegiao);
+
+  document.getElementById('cardsGrid').innerHTML = `
+    <div class="card accent-left">
+      <div class="card-label">📊 Total de demandas</div>
+      <div class="card-value">${n.toLocaleString('pt-BR')}</div>
+      <div class="card-sub">Excluindo Atendido e Não Atendido</div>
+    </div>
+    <div class="card">
+      <div class="card-label">🏢 Órgão mais demandado</div>
+      <div class="card-value sm">${topOrgao.name}</div>
+      <div class="card-sub">${topOrgao.count.toLocaleString('pt-BR')} demandas</div>
+    </div>
+    <div class="card">
+      <div class="card-label">📍 Bairro mais demandado</div>
+      <div class="card-value sm">${topBairro.name}</div>
+      <div class="card-sub">${topBairro.count.toLocaleString('pt-BR')} demandas</div>
+    </div>
+    <div class="card">
+      <div class="card-label">🗺️ Região mais demandada</div>
+      <div class="card-value sm">${topReg.name}</div>
+      <div class="card-sub">${topReg.count.toLocaleString('pt-BR')} demandas</div>
+    </div>`;
+}
+
+// ── Status chips ───────────────────────────────────────────────────────────
+function renderChips() {
+  const counts = countBy(filteredData, getStatus);
+  const html = Object.entries(counts)
+    .sort((a,b) => b[1]-a[1])
+    .map(([s, c]) => {
+      const st = S_STYLE[s] || { dot: '#9ca3af' };
+      return `<div class="chip">
+        <span class="dot" style="background:${st.dot}"></span>
+        ${s}: <span class="chip-n">${c.toLocaleString('pt-BR')}</span>
+      </div>`;
+    }).join('');
+  document.getElementById('statusChips').innerHTML = html;
+}
+
+// ── Bar chart ──────────────────────────────────────────────────────────────
+function setBarMode(mode, btn) {
+  barMode = mode;
+  document.querySelectorAll('.tb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const titles = { bairro:'Top 15 por Bairro', regiao:'Por Região', orgao:'Top 15 por Órgão' };
+  document.getElementById('barTitle').textContent = titles[mode];
+  renderBar();
+}
+
+function renderBar() {
+  const fnMap = { bairro: getBairro, regiao: getRegiao, orgao: getOrgao };
+  const counts = countBy(filteredData, fnMap[barMode]);
+  let entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  if (barMode !== 'regiao') entries = entries.slice(0, 15);
+
+  const labels = entries.map(e => e[0]);
+  const data   = entries.map(e => e[1]);
+  const h = Math.max(260, labels.length * 28);
+  document.getElementById('barWrap').style.height = h + 'px';
+
+  if (barInst) { barInst.destroy(); barInst = null; }
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: BAR_COLORS.slice(0, labels.length).map(c => c + 'cc'),
+        borderColor:      BAR_COLORS.slice(0, labels.length),
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toLocaleString('pt-BR')} demandas` } }
+      },
+      scales: {
+        x: { grid: { color: '#e2e8f0' }, ticks: { font: { size: 11 } } },
+        y: { grid: { display: false },   ticks: { font: { size: 12 }, maxRotation: 0 } }
+      }
+    }
+  });
+}
+
+// ── Donut chart ────────────────────────────────────────────────────────────
+function renderDonut() {
+  const counts  = countBy(filteredData, getStatus);
+  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const labels  = entries.map(e => e[0]);
+  const data    = entries.map(e => e[1]);
+  const colors  = labels.map(l => (S_STYLE[l] || { dot: '#9ca3af' }).dot);
+
+  if (donutInst) { donutInst.destroy(); donutInst = null; }
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  donutInst = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 5 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '64%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11 }, padding: 8, usePointStyle: true, pointStyleWidth: 8 }
+        },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString('pt-BR')}` } }
+      }
+    }
+  });
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────
+function onSearch() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  tableData = q
+    ? filteredData.filter(r =>
+        (r['Demanda TXT'] || r['informacoes'] || '').toLowerCase().includes(q) ||
+        getBairro(r).toLowerCase().includes(q) ||
+        getRegiao(r).toLowerCase().includes(q) ||
+        getOrgao(r).toLowerCase().includes(q)  ||
+        getStatus(r).toLowerCase().includes(q) ||
+        (r['solicitante'] || '').toLowerCase().includes(q)
+      )
+    : [...filteredData];
+  curPage = 1;
+  renderTable();
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const m = s.match(/([A-Za-z]+)\s+(\d+),\s+(\d{4})/);
+  if (!m) return s.split(' ').slice(0,2).join(' ');
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
+                  Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  return `${m[2].padStart(2,'0')}/${months[m[1]] || '?'}/${m[3]}`;
+}
+
+function renderTable() {
+  const total  = tableData.length;
+  const start  = (curPage - 1) * PAGE;
+  const page   = tableData.slice(start, start + PAGE);
+
+  document.getElementById('tCount').textContent = total.toLocaleString('pt-BR');
+
+  if (!page.length) {
+    document.getElementById('tBody').innerHTML =
+      `<tr><td colspan="7" style="text-align:center;padding:32px;color:#6b7280">Nenhum registro encontrado.</td></tr>`;
+    document.getElementById('pagBar').innerHTML = '';
+    return;
+  }
+
+  document.getElementById('tBody').innerHTML = page.map(r => {
+    const s   = getStatus(r);
+    const st  = S_STYLE[s] || { bg:'#f3f4f6', fg:'#374151' };
+    const dem = (r['Demanda TXT'] || r['informacoes'] || '—').replace(/\n/g,' ').trim();
+    const dem80 = dem.substring(0, 80);
+    return `<tr>
+      <td>${fmtDate(r['Creation Date'])}</td>
+      <td>${getBairro(r) || '—'}</td>
+      <td>${getRegiao(r) || '—'}</td>
+      <td>${getOrgao(r)  || '—'}</td>
+      <td><span class="badge" style="background:${st.bg};color:${st.fg}">${s}</span></td>
+      <td title="${dem.replace(/"/g,"'")}">${dem80}${dem.length > 80 ? '…' : ''}</td>
+      <td>${r['solicitante'] || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  renderPag(total);
+}
+
+function renderPag(total) {
+  const pages = Math.ceil(total / PAGE);
+  if (pages <= 1) { document.getElementById('pagBar').innerHTML = ''; return; }
+
+  const s = (curPage - 1) * PAGE + 1;
+  const e = Math.min(curPage * PAGE, total);
+
+  const near = new Set([1, pages, curPage, curPage-1, curPage+1].filter(p => p >= 1 && p <= pages));
+  const sorted = [...near].sort((a,b) => a-b);
+  let btns = '', prev = null;
+  sorted.forEach(p => {
+    if (prev !== null && p - prev > 1) btns += `<span style="padding:3px 5px;color:#9ca3af">…</span>`;
+    btns += `<button class="pb ${p===curPage?'on':''}" onclick="goPage(${p})">${p}</button>`;
+    prev = p;
+  });
+
+  document.getElementById('pagBar').innerHTML = `
+    <span>Mostrando ${s.toLocaleString('pt-BR')}–${e.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')}</span>
+    <div class="pag-btns">
+      <button class="pb" onclick="goPage(${curPage-1})" ${curPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="pb" onclick="goPage(${curPage+1})" ${curPage===pages?'disabled':''}>›</button>
+    </div>`;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(tableData.length / PAGE);
+  if (p < 1 || p > pages) return;
+  curPage = p;
+  renderTable();
+  document.querySelector('.table-card').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  const cols = ['Creation Date','bairro','Região','ÓRGÃO','status','Demanda TXT','solicitante'];
+  const rows = [cols.map(c => `"${c}"`).join(',')];
+  tableData.forEach(r => rows.push(cols.map(c => `"${(r[c]||'').replace(/\n/g,' ').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob(['﻿' + rows.join('\n')], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: 'demandas_filtradas.csv' });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
