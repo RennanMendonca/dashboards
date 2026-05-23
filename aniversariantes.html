@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aniversariantes do Dia</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #4338ca;
+      --primary-light: #eef2ff;
+    }
+    body {
+      background: #f1f5f9;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%);
+      color: #fff;
+      padding: 1.75rem 2rem;
+    }
+    .card {
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+    .stat-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.35rem; flex-shrink: 0;
+    }
+    .stat-val { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+    .inst-chip {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .45rem .85rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      transition: all .15s;
+      user-select: none;
+    }
+    .inst-chip:hover { border-color: var(--primary); }
+    .inst-chip.on  { border-color: var(--primary); background: var(--primary-light); }
+    .inst-chip input[type=checkbox] { accent-color: var(--primary); width:15px; height:15px; }
+    .chip-label { font-size: .82rem; font-weight: 500; flex: 1; }
+    .chip-count { font-size: .72rem; background: #e2e8f0; border-radius: 20px; padding: .1rem .45rem; }
+    .chips-grid { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .bar-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; }
+    .bar-label { font-size: .8rem; white-space: nowrap; width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .bar-wrap { flex: 1; background: #e2e8f0; border-radius: 99px; height: 8px; }
+    .bar-fill { height: 8px; border-radius: 99px; }
+    .bar-num { font-size: .78rem; font-weight: 600; min-width: 24px; text-align: right; }
+    table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; font-weight: 600; }
+    table tbody td { font-size: .88rem; vertical-align: middle; }
+    .badge-inst { font-size: .72rem; padding: .25rem .55rem; border-radius: 6px; }
+    .loading-box { display: flex; align-items: center; justify-content: center; min-height: 160px; }
+    .link-sheets { font-size: .8rem; opacity: .8; }
+    .link-sheets:hover { opacity: 1; }
+    @media (max-width: 576px) { .bar-label { width: 100px; } }
+  </style>
+</head>
+<body>
+
+<!-- ─── HEADER ─────────────────────────────────────── -->
+<div class="header">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+      <h1 class="h4 fw-bold mb-1">🎂 Aniversariantes do Dia</h1>
+      <p class="mb-0" id="lbl-today" style="opacity:.8;font-size:.93rem">Carregando…</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button class="btn btn-sm btn-light" onclick="loadData()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-3 px-md-4 py-4">
+
+  <!-- ─── STAT CARDS ─────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#eef2ff">
+            <i class="bi bi-people-fill text-primary"></i>
+          </div>
+          <div>
+            <div style="font-size:.78rem;color:#64748b">Total Hoje</div>
+            <div class="stat-val text-primary" id="s-total">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#f0fdf4">
+            <i class="bi bi-geo-alt-fill text-success"></i>
+          </div>
+          <div>
+            <div style="font-size:.78rem;color:#64748b">Bairros</div>
+            <div class="stat-val text-success" id="s-bairros">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#fffbeb">
+            <i class="bi bi-building" style="color:#d97706;font-size:1.2rem"></i>
+          </div>
+          <div>
+            <div style="font-size:.78rem;color:#64748b">Instâncias</div>
+            <div class="stat-val" style="color:#d97706" id="s-inst">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#fff1f2">
+            <i class="bi bi-exclamation-circle-fill text-danger"></i>
+          </div>
+          <div>
+            <div style="font-size:.78rem;color:#64748b">Sem Instância</div>
+            <div class="stat-val text-danger" id="s-sem">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FILTER + DOWNLOAD ───────────────────────── -->
+  <div class="card mb-4">
+    <!-- cabeçalho clicável para colapsar -->
+    <div class="d-flex align-items-center justify-content-between px-4 pt-3 pb-3"
+         style="cursor:pointer;border-bottom:1px solid #f1f5f9" onclick="toggleFilter()">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-funnel text-primary"></i>
+        <h6 class="fw-semibold mb-0">Filtrar por Instância</h6>
+        <span class="text-muted" style="font-size:.8rem" id="lbl-sel">0 registro(s)</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-success px-3 py-1" style="font-size:.85rem"
+                onclick="event.stopPropagation();downloadExcel()">
+          <i class="bi bi-file-earmark-excel-fill me-1"></i>Baixar Excel
+        </button>
+        <i class="bi bi-chevron-up text-muted" id="filter-chevron" style="font-size:1rem;transition:transform .2s"></i>
+      </div>
+    </div>
+    <!-- corpo colapsável -->
+    <div id="filter-body" class="px-4 pt-3 pb-4">
+      <div class="d-flex gap-2 mb-3 flex-wrap">
+        <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">Selecionar Todas</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearAll()">Limpar</button>
+      </div>
+      <div class="chips-grid" id="inst-chips">
+        <div class="text-muted small">Carregando…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TABLE ───────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="d-flex align-items-center justify-content-between px-4 pt-4 pb-2">
+      <h6 class="fw-semibold mb-0"><i class="bi bi-table me-2 text-primary"></i>Lista</h6>
+      <span class="badge rounded-pill bg-primary" id="tbl-count">0</span>
+    </div>
+    <div id="tbl-wrap">
+      <div class="loading-box">
+        <div class="spinner-border text-primary"><span class="visually-hidden">Carregando</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── BREAKDOWNS ──────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="card p-4 h-100">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-geo-alt text-success me-2"></i>Por Bairro</h6>
+        <div id="bd-bairro"><div class="text-muted small">Carregando…</div></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="card p-4 h-100">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-building me-2" style="color:#d97706"></i>Por Instância</h6>
+        <div id="bd-inst"><div class="text-muted small">Carregando…</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── config ─────────────────────────────────────────────────────────────
+const SHEET_ID = '1fo-gFL1fojGXFSq3VBGa1cOKRidYJgnoJEJhelL7XKs';
+const GID      = '791954136';
+const EDIT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${GID}#gid=${GID}`;
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+// ── state ──────────────────────────────────────────────────────────────
+let all = [];            // todos os aniversariantes de hoje
+let instList = [];       // lista ordenada de instâncias únicas
+let selected = new Set(); // instâncias selecionadas no filtro
+
+// ── hoje ──────────────────────────────────────────────────────────────
+const NOW        = new Date();
+const TODAY_D    = NOW.getDate();
+const TODAY_M    = NOW.getMonth() + 1;  // 1-based
+
+document.getElementById('lbl-today').textContent =
+  NOW.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+// ── date parsing ──────────────────────────────────────────────────────
+// O Google Sheets exporta datas como M/D/YY H:MM (locale US, independente
+// do locale da planilha). Ex: "6/15/23 0:00" = 15 de junho de 2023.
+// Retorna {day, month} ou null.
+function parseDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+
+  // Remove sufixo de hora: "6/15/23 0:00" → "6/15/23"
+  const noTime = s.replace(/\s+\d+:\d+.*$/, '').trim();
+
+  // M/D/YY ou M/DD/YYYY (formato de exportação do Google Sheets)
+  let m = noTime.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) {
+    const mo = +m[1], d = +m[2];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31)
+      return { day: d, month: mo };
+  }
+
+  // YYYY-MM-DD (ISO)
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return { day: +m[3], month: +m[2] };
+
+  // Serial numérico (Sheets às vezes exporta número inteiro)
+  const n = +s;
+  if (!isNaN(n) && n > 1000) {
+    const jsDate = new Date((n - 25569) * 86400000);
+    return { day: jsDate.getUTCDate(), month: jsDate.getUTCMonth() + 1 };
+  }
+
+  return null;
+}
+
+// Formata data para exibição DD/MM/AAAA (converte do formato de exportação do Sheets)
+function formatDateBR(raw) {
+  if (!raw) return '—';
+  const s = String(raw).trim().replace(/\s+\d+:\d+.*$/, '');
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!m) return raw;
+  const mo = String(m[1]).padStart(2,'0');
+  const d  = String(m[2]).padStart(2,'0');
+  let yr   = +m[3];
+  if (yr < 100) yr += yr < 30 ? 2000 : 1900;
+  return `${d}/${mo}/${yr}`;
+}
+
+// ── column detection ──────────────────────────────────────────────────
+// Colunas reais da planilha:
+//   Bairro | Bairro sistema | Data de Nascimento | Instância | Telefone | unique id
+function detectCols(fields) {
+  const map = {};
+  const norm = s => s ? s.normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase() : '';
+
+  fields.forEach(f => {
+    const n = norm(f);
+    // "Bairro sistema" tem prioridade sobre "Bairro" sozinho
+    if (n === 'bairro sistema' || n === 'sistema')    map.bairro    = f;
+    if (!map.bairro && n === 'bairro')                map.bairro    = f;
+    if (n.includes('nascimento'))                      map.data      = f;
+    if (!map.data && n.startsWith('data'))             map.data      = f;
+    if (n.startsWith('inst'))                          map.instancia = f;
+    if (/^(tel|fone|celular|whatsapp|phone)/.test(n)) map.telefone  = f;
+    if (n.includes('unique') || n === 'id')           map.id        = f;
+  });
+
+  console.log('[aniversariantes] colunas detectadas:', JSON.stringify(map));
+  return map;
+}
+
+// ── load ──────────────────────────────────────────────────────────────
+async function loadData() {
+  showLoading();
+  try {
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+
+    Papa.parse(csv, {
+      header: true,
+      skipEmptyLines: true,
+      complete: r => processData(r.data, r.meta.fields || [])
+    });
+  } catch (e) {
+    showError(`Não foi possível carregar a planilha.<br>
+      <small class="text-muted">Verifique se ela está compartilhada como <strong>"Qualquer pessoa com o link pode visualizar"</strong>.</small><br>
+      <small class="text-danger">${e.message}</small>`);
+  }
+}
+
+function showLoading() {
+  document.getElementById('tbl-wrap').innerHTML =
+    `<div class="loading-box"><div class="spinner-border text-primary"><span class="visually-hidden">Carregando</span></div></div>`;
+}
+
+function showError(msg) {
+  document.getElementById('tbl-wrap').innerHTML =
+    `<div class="alert alert-danger m-4"><i class="bi bi-exclamation-triangle me-2"></i>${msg}</div>`;
+}
+
+// ── process ───────────────────────────────────────────────────────────
+function processData(rows, fields) {
+  const C = detectCols(fields);
+
+  // Filtra aniversariantes de hoje
+  all = rows.filter(r => {
+    const parsed = parseDate(r[C.data]);
+    return parsed && parsed.day === TODAY_D && parsed.month === TODAY_M;
+  }).map(r => ({
+    id:        r[C.id]        || '',
+    bairro:    r[C.bairro]    || '',
+    instancia: r[C.instancia] || '',
+    telefone:  r[C.telefone]  || '',
+    dataNasc:  r[C.data]      || '',
+    _raw: r
+  }));
+
+  // Instâncias únicas (empty string = sem instância)
+  const instSet = new Set(all.map(r => r.instancia));
+  instList = [...instSet].sort((a,b) => {
+    if (!a) return 1; if (!b) return -1;
+    return a.localeCompare(b, 'pt-BR');
+  });
+  selected = new Set(instList);
+
+  renderStats();
+  renderBreakdowns();
+  renderChips();
+  renderTable();
+}
+
+// ── stats ─────────────────────────────────────────────────────────────
+function renderStats() {
+  document.getElementById('s-total').textContent  = all.length;
+  document.getElementById('s-bairros').textContent = countUnique(all, r => r.bairro);
+  document.getElementById('s-inst').textContent   = countUnique(all, r => r.instancia, v => !!v);
+  document.getElementById('s-sem').textContent    = all.filter(r => !r.instancia).length;
+}
+
+function countUnique(arr, fn, cond) {
+  const s = new Set();
+  arr.forEach(r => { const v = fn(r); if (!cond || cond(v)) s.add(v); });
+  return s.size;
+}
+
+// ── breakdowns ────────────────────────────────────────────────────────
+function renderBreakdowns() {
+  document.getElementById('bd-bairro').innerHTML = buildBars(all, r => r.bairro || '(Sem bairro)', '#16a34a');
+  document.getElementById('bd-inst').innerHTML   = buildBars(all, r => r.instancia || '(Sem instância)', '#d97706');
+}
+
+function buildBars(data, fn, color) {
+  const counts = {};
+  data.forEach(r => { const k = fn(r); counts[k] = (counts[k]||0)+1; });
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return '<div class="text-muted small">Sem dados</div>';
+  const max = entries[0][1];
+  return entries.map(([k,v]) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${k}">${k}</div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(v/max*100)}%;background:${color}"></div></div>
+      <div class="bar-num" style="color:${color}">${v}</div>
+    </div>`).join('');
+}
+
+// ── chips (filtro de instâncias) ──────────────────────────────────────
+function renderChips() {
+  const container = document.getElementById('inst-chips');
+  if (!instList.length) {
+    container.innerHTML = '<div class="text-muted small">Nenhuma instância encontrada</div>';
+    return;
+  }
+  container.innerHTML = instList.map((inst, i) => {
+    const label = inst || '(Sem instância)';
+    const count = all.filter(r => r.instancia === inst).length;
+    const on    = selected.has(inst);
+    return `<label class="inst-chip ${on?'on':''}" data-i="${i}">
+      <input type="checkbox" ${on?'checked':''} onchange="toggleChip(${i},this)" />
+      <span class="chip-label">${label}</span>
+      <span class="chip-count">${count}</span>
+    </label>`;
+  }).join('');
+}
+
+function toggleChip(i, cb) {
+  const inst = instList[i];
+  const chip = cb.closest('.inst-chip');
+  if (cb.checked) { selected.add(inst);    chip.classList.add('on'); }
+  else            { selected.delete(inst); chip.classList.remove('on'); }
+  renderTable();
+}
+
+function selectAll() {
+  selected = new Set(instList);
+  document.querySelectorAll('#inst-chips .inst-chip').forEach(el => {
+    el.querySelector('input').checked = true;
+    el.classList.add('on');
+  });
+  renderTable();
+}
+
+function clearAll() {
+  selected.clear();
+  document.querySelectorAll('#inst-chips .inst-chip').forEach(el => {
+    el.querySelector('input').checked = false;
+    el.classList.remove('on');
+  });
+  renderTable();
+}
+
+// ── table ─────────────────────────────────────────────────────────────
+function getFiltered() {
+  return all.filter(r => selected.has(r.instancia));
+}
+
+function renderTable() {
+  const rows = getFiltered();
+  document.getElementById('tbl-count').textContent = rows.length;
+  document.getElementById('lbl-sel').textContent   = `${rows.length} registro(s) selecionado(s)`;
+
+  if (!rows.length) {
+    document.getElementById('tbl-wrap').innerHTML =
+      `<div class="text-center text-muted py-5">
+        <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-50"></i>
+        Nenhum aniversariante encontrado para os filtros selecionados.
+      </div>`;
+    return;
+  }
+
+  document.getElementById('tbl-wrap').innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">#</th>
+            <th>Telefone</th>
+            <th>Bairro</th>
+            <th>Instância</th>
+            <th>Nasc.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r, i) => `
+            <tr>
+              <td class="ps-4 text-muted fw-medium">${i + 1}</td>
+              <td>${r.telefone
+                ? `<a href="https://wa.me/55${r.telefone.replace(/\D/g,'')}" target="_blank" class="text-decoration-none fw-medium">${esc(r.telefone)}</a>`
+                : '<span class="text-muted">—</span>'}</td>
+              <td>${esc(r.bairro) || '<span class="text-muted">—</span>'}</td>
+              <td>${r.instancia
+                ? `<span class="badge bg-warning text-dark badge-inst">${esc(r.instancia)}</span>`
+                : `<span class="badge bg-danger badge-inst">Sem instância</span>`}</td>
+              <td class="text-muted" style="font-size:.8rem">${formatDateBR(r.dataNasc)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── download excel ────────────────────────────────────────────────────
+function downloadExcel() {
+  const rows = getFiltered();
+  if (!rows.length) { alert('Nenhum aniversariante selecionado.'); return; }
+
+  const dd = String(TODAY_D).padStart(2,'0');
+  const mm = String(TODAY_M).padStart(2,'0');
+  const aa = NOW.getFullYear();
+  const filename = `aniversariantes_${dd}-${mm}-${aa}.xlsx`;
+
+  const wsData = [
+    ['ID', 'Telefone', 'Bairro (Sistema)', 'Instância', 'Data de Nascimento'],
+    ...rows.map(r => {
+      const br = formatDateBR(r.dataNasc);         // "23/05/1981"
+      const dayMonth = br.slice(0, 5);              // "23/05"
+      // Prefixo de apóstrofo força texto puro no Excel (evita auto-conversão de data)
+      return [r.id, r.telefone, r.bairro, r.instancia, { t: 's', v: dayMonth }];
+    })
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [
+    { wch: 36 }, // ID
+    { wch: 18 }, // Telefone
+    { wch: 28 }, // Bairro
+    { wch: 28 }, // Instância
+    { wch: 20 }, // Data
+  ];
+
+  // Estilo do cabeçalho (xlsx.full suporta styles)
+  try {
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const ref = XLSX.utils.encode_cell({ r: 0, c });
+      if (!ws[ref]) continue;
+      ws[ref].s = {
+        font:      { bold: true, color: { rgb: 'FFFFFF' } },
+        fill:      { fgColor: { rgb: '4338CA' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  } catch(_) { /* estilo opcional */ }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Aniversariantes');
+  XLSX.writeFile(wb, filename);
+}
+
+// ── colapsar filtro ───────────────────────────────────────────────────
+let filterOpen = true;
+function toggleFilter() {
+  filterOpen = !filterOpen;
+  const body    = document.getElementById('filter-body');
+  const chevron = document.getElementById('filter-chevron');
+  body.style.display    = filterOpen ? '' : 'none';
+  chevron.style.transform = filterOpen ? '' : 'rotate(180deg)';
+}
+
+// ── init ──────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
